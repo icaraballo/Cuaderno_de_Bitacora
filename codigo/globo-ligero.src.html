@@ -1,0 +1,240 @@
+<title>Globo ligero</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept: same chart-board identity as the travel map; the globe floats on the sea colour, controls in a boarding-pass bar. */
+:root{
+  --bg:#e9eff2;--sea:#d9e6ec;--land:#f3f6f4;--visit:#c6e3da;--coast:#8aa5b1;--ink:#10222b;--muted:#566c77;
+  --panel:#fbfcfc;--line:#cbd9df;--hair:#e2eaee;--plane:#2563d6;--road:#7c4dc4;--rail:#34893a;--boat:#0b8a94;--bus:#c96a0a;
+  --ocean:#cfe0e8;--rim:#a9c3cf;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#07121a;--sea:#0a1820;--land:#1b2f37;--visit:#1e4b48;--coast:#38555f;--ink:#e8f0f3;--muted:#8fa6b0;
+  --panel:#0f202a;--line:#243b46;--hair:#1a303a;--plane:#6fa3ff;--road:#b99aff;--rail:#72cf77;--boat:#3cc8d0;--bus:#f0a24a;
+  --ocean:#0d222c;--rim:#2a4752;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#07121a;--sea:#0a1820;--land:#1b2f37;--visit:#1e4b48;--coast:#38555f;--ink:#e8f0f3;--muted:#8fa6b0;
+  --panel:#0f202a;--line:#243b46;--hair:#1a303a;--plane:#6fa3ff;--road:#b99aff;--rail:#72cf77;--boat:#3cc8d0;--bus:#f0a24a;
+  --ocean:#0d222c;--rim:#2a4752;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 var(--font-body);overflow:hidden;
+  padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--plane);outline-offset:2px}
+.app{position:relative;height:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--sea)}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas:active{cursor:grabbing}
+.top{position:absolute;top:12px;left:12px;right:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;pointer-events:none}
+.top>*{pointer-events:auto}
+.title{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;max-width:100%}
+h1{margin:0;font:700 21px/1.1 var(--font-display);letter-spacing:-.01em}
+.sub{margin:3px 0 0;font:400 11.5px var(--font-mono);color:var(--muted)}
+.bar{position:absolute;left:12px;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--panel);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.ib svg{width:18px;height:18px;fill:currentColor}
+select{height:38px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:0 10px;max-width:100%;min-width:0;flex:1 1 180px}
+.leg{flex:1 1 200px;min-width:0;font:500 12px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.leg b{color:var(--ink);font-weight:500}
+.meter{display:flex;gap:6px;flex-wrap:wrap}
+.meter span{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:500 11.5px var(--font-mono);color:var(--muted);white-space:nowrap}
+.meter b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.arr{position:absolute;left:0;top:0;pointer-events:none;transform:translate(-50%,-100%);text-align:center;padding-bottom:16px}
+.arr b{display:block;font:700 34px/1.05 var(--font-display);letter-spacing:-.02em;text-shadow:0 0 2px var(--sea),0 0 14px var(--sea);animation:up .55s cubic-bezier(.2,.9,.2,1) both}
+.arr small{font:500 11.5px var(--font-mono);color:var(--muted);text-shadow:0 0 6px var(--sea)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (max-width:600px){h1{font-size:18px}.arr b{font-size:26px}.meter{width:100%}}
+@media (prefers-reduced-motion:reduce){.arr b{animation:none}}
+</style>
+
+<div class="app" id="app">
+  <canvas id="cv" aria-label="Globo terráqueo con las rutas de los viajes"></canvas>
+  <div class="top">
+    <div class="title"><h1>Globo ligero</h1><p class="sub">d3 · proyección ortográfica · canvas 2D</p></div>
+  </div>
+  <div class="arr" id="arr" hidden><b id="arrN"></b><small id="arrS"></small></div>
+  <div class="bar">
+    <button class="ib" id="play" type="button" aria-label="Reproducir"></button>
+    <select id="trip" aria-label="Viaje a reproducir"></select>
+    <p class="leg" id="leg">Arrastra para girar el globo · ▶ para volar un viaje</p>
+    <div class="meter"><span>peso <b id="kb">–</b></span><span><b id="fps">–</b> fps</span></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>const TOPO=__TOPO__;const TOPO_LO=__TOPO_LO__;const DATA=__DATA__;</script>
+<script>
+(function(){
+'use strict';
+const PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',PAUSE='<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
+const PLANE=new Path2D('M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z');
+const MODE={plane:'avión',bus:'bus',boat:'barco',train:'tren',car:'coche',foot:'a pie',bike:'bici'};
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),app=document.getElementById('app');
+const P=DATA.places,visited=new Set(DATA.iso.map(Number));
+/* dos niveles de detalle: mapa sencillo (110m) de lejos y detallado (50m) de cerca, dibujando solo los países a la vista */
+function level(T){
+  const fs=topojson.feature(T,T.objects.countries).features;
+  fs.forEach(f=>{f.c=d3.geoCentroid(f);let r=0;
+    const walk=a=>{if(typeof a[0]==='number'){const d=d3.geoDistance(f.c,a);if(d>r)r=d;}else a.forEach(walk);};walk(f.geometry.coordinates);f.r=r;f.v=visited.has(+f.id);});
+  return {fs:fs,borders:topojson.mesh(T,T.objects.countries,(a,b)=>a!==b)};
+}
+const LO=level(TOPO_LO),HI=level(TOPO);
+const grat=d3.geoGraticule10();
+const proj=d3.geoOrthographic().clipAngle(90).precision(.4),path=d3.geoPath(proj,ctx);
+let W=0,H=0,DPR=1,base=300;
+let col={};
+function readCol(){const cs=getComputedStyle(document.documentElement);['ocean','rim','land','visit','coast','ink','muted','panel','plane','road','rail','boat','bus','sea'].forEach(k=>col[k]=cs.getPropertyValue('--'+k).trim());}
+const modeCol=m=>m==='plane'?col.plane:m==='train'?col.rail:m==='boat'?col.boat:m==='bus'?col.bus:col.road;
+
+/* rutas: vuelos y barcos por círculo máximo; coche, bus y tren por su ruta real si existe */
+const LEGS=[];
+DATA.trips.forEach(t=>t.legs.forEach(L=>{
+  const a=P[L.a].ll,b=P[L.b].ll,line=L.r?L.r:null;
+  LEGS.push({trip:t,m:L.m,a:L.a,b:L.b,geo:{type:'LineString',coordinates:line||[a,b]},
+    interp:line?polyInterp(line):d3.geoInterpolate(a,b),dist:d3.geoDistance(a,b)});
+}));
+function polyInterp(pts){
+  const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+d3.geoDistance(pts[i-1],pts[i]));
+  const tot=cum[cum.length-1]||1;
+  return function(u){const d=u*tot;let i=1;while(i<pts.length-1&&cum[i]<d)i++;const s=(d-cum[i-1])/((cum[i]-cum[i-1])||1);return d3.geoInterpolate(pts[i-1],pts[i])(Math.max(0,Math.min(1,s)));};
+}
+
+/* estado de cámara: rotación [λ,φ] y escala */
+let rot=[3,-30],scale=1,auto=true,drag=null,play=null,arrived=null;
+function size(){
+  const r=app.getBoundingClientRect();W=r.width;H=r.height;DPR=Math.min(2,devicePixelRatio||1);
+  cv.width=W*DPR;cv.height=H*DPR;base=Math.min(W,H-120)*.44;readCol();
+}
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+  const cy=H/2-10;
+  proj.translate([W/2,cy]).scale(base*scale).rotate([rot[0],rot[1]]);
+  const R=base*scale;
+  // halo y océano
+  ctx.beginPath();ctx.arc(W/2,cy,R,0,Math.PI*2);ctx.fillStyle=col.ocean;ctx.fill();
+  ctx.lineWidth=1.2;ctx.strokeStyle=col.rim;ctx.stroke();
+  ctx.beginPath();path(grat);ctx.strokeStyle=col.rim;ctx.globalAlpha=.45;ctx.lineWidth=.6;ctx.stroke();ctx.globalAlpha=1;
+  const hi=scale>2.2,Lv=hi?HI:LO,c0=[-rot[0],-rot[1]],view=Math.min(Math.PI/2,Math.asin(Math.min(1,Math.hypot(W,H)/2/R))+.05);
+  const vf=hi?Lv.fs.filter(f=>d3.geoDistance(f.c,c0)-f.r<view):Lv.fs;
+  ctx.beginPath();vf.forEach(f=>{if(!f.v)path(f);});ctx.fillStyle=col.land;ctx.fill();
+  ctx.beginPath();vf.forEach(f=>{if(f.v)path(f);});ctx.fillStyle=col.visit;ctx.fill();
+  ctx.beginPath();if(hi)vf.forEach(f=>path(f));else path(Lv.borders);ctx.strokeStyle=col.coast;ctx.lineWidth=.5;ctx.stroke();
+  // todas las rutas, tenues
+  const scope=play?play.legs:LEGS;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  scope.forEach((L,i)=>{
+    if(play&&i>play.i)return;
+    ctx.beginPath();
+    if(play&&i===play.i){ // tramo en curso, hasta donde va el vehículo
+      const n=48,pts=[];for(let k=0;k<=n;k++)pts.push(L.interp(play.u*k/n));
+      path({type:'LineString',coordinates:pts});
+    }else path(L.geo);
+    ctx.strokeStyle=modeCol(L.m);ctx.globalAlpha=play?.95:.55;ctx.lineWidth=play?2.4:1.4;ctx.stroke();ctx.globalAlpha=1;
+  });
+  // lugares
+  const seen=new Set();
+  scope.forEach((L,i)=>{if(play&&i>play.i)return;[L.a,L.b].forEach(k=>{if(seen.has(k))return;seen.add(k);
+    if(play&&i===play.i&&k===L.b&&play.u<1)return;
+    if(d3.geoDistance(P[k].ll,[-rot[0],-rot[1]])>Math.PI/2-.02)return;
+    const p=proj(P[k].ll);ctx.beginPath();ctx.arc(p[0],p[1],play?3.6:2.4,0,Math.PI*2);ctx.fillStyle=col.ink;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=col.land;ctx.stroke();});});
+  // ondas de llegada
+  if(arrived){
+    const t=(performance.now()-arrived.t0)/1100;
+    if(t<1&&d3.geoDistance(P[arrived.k].ll,[-rot[0],-rot[1]])<Math.PI/2){
+      const p=proj(P[arrived.k].ll);
+      for(let j=0;j<3;j++){const q=t*1.4-j*.2;if(q<=0||q>=1)continue;ctx.beginPath();ctx.arc(p[0],p[1],6+q*42,0,Math.PI*2);ctx.strokeStyle=arrived.c;ctx.globalAlpha=(1-q)*.8;ctx.lineWidth=2;ctx.stroke();ctx.globalAlpha=1;}
+    }
+    placeArr();
+  }
+  // vehículo
+  if(play&&play.u<1){
+    const L=play.legs[play.i],p=proj(L.interp(play.u)),q=proj(L.interp(Math.min(1,play.u+.01)));
+    const ang=Math.atan2(q[1]-p[1],q[0]-p[0])+Math.PI/2,h=L.m==='plane'?Math.sin(Math.PI*play.u):0;
+    ctx.save();ctx.translate(p[0]+h*8,p[1]+h*5);ctx.rotate(ang);ctx.scale(1.1,1.1);ctx.translate(-12,-12);ctx.fillStyle='rgba(0,0,0,.25)';ctx.fill(PLANE);ctx.restore();
+    ctx.save();ctx.translate(p[0],p[1]-h*14);ctx.rotate(ang);ctx.scale(1.15+h*.4,1.15+h*.4);ctx.translate(-12,-12);
+    if(L.m==='plane'){ctx.fillStyle=col.plane;ctx.strokeStyle=col.panel;ctx.lineWidth=1.4;ctx.stroke(PLANE);ctx.fill(PLANE);}
+    else{ctx.beginPath();ctx.arc(12,12,8,0,Math.PI*2);ctx.fillStyle=modeCol(L.m);ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=col.panel;ctx.stroke();}
+    ctx.restore();
+  }
+}
+
+/* arrastrar para girar */
+cv.addEventListener('pointerdown',e=>{if(play)return;auto=false;drag={x:e.clientX,y:e.clientY,r:rot.slice()};cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const k=.25/scale;rot=[drag.r[0]+(e.clientX-drag.x)*k,Math.max(-80,Math.min(80,drag.r[1]-(e.clientY-drag.y)*k))];});
+cv.addEventListener('pointerup',()=>{drag=null;});
+cv.addEventListener('wheel',e=>{if(play)return;e.preventDefault();scale=Math.max(.7,Math.min(8,scale*Math.exp(-e.deltaY*.0015)));},{passive:false});
+
+/* viajes */
+const sel=document.getElementById('trip');
+DATA.trips.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.y+' · '+t.title;sel.appendChild(o);});
+sel.value=String(DATA.trips.findIndex(t=>t.id==='japon'));
+const btn=document.getElementById('play'),legEl=document.getElementById('leg'),arrEl=document.getElementById('arr');
+btn.innerHTML=PLAY;
+function center(ll){return [-ll[0],-ll[1]];}
+/* la rotación sigue al vehículo; la escala se abre a mitad de un tramo largo y se cierra al llegar */
+function legScale(L){
+  const s=L.trip?1:1,half=Math.max(L.dist/2,.004);
+  const mid=Math.max(1.05,Math.min(40,.62/Math.sin(Math.min(half,1.2))));
+  return {near:Math.min(60,mid*2.2),mid:mid};
+}
+function lerpRot(a,b,t){let d=b[0]-a[0];d=((d+540)%360)-180;return [a[0]+d*t,a[1]+(b[1]-a[1])*t];}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function tween(ms,f){return new Promise(res=>{const t0=performance.now();(function s(n){if(!play){res();return;}const t=Math.min(1,(n-t0)/ms);f(d3.easeCubicInOut(t));if(t<1)requestAnimationFrame(s);else res();})(t0);});}
+function showArr(L){
+  const pl=P[L.b];arrived={k:L.b,t0:performance.now(),c:modeCol(L.m)};
+  document.getElementById('arrN').textContent=pl.n;document.getElementById('arrS').textContent=MODE[L.m]+' desde '+P[L.a].n;
+  arrEl.hidden=false;const b=arrEl.querySelector('b');b.style.animation='none';void b.offsetWidth;b.style.animation='';placeArr();
+}
+function placeArr(){if(!arrived||arrEl.hidden)return;const p=proj(P[arrived.k].ll);arrEl.style.left=p[0]+'px';arrEl.style.top=(p[1]-8)+'px';}
+async function run(){
+  const t=DATA.trips[+sel.value],legs=LEGS.filter(L=>L.trip===t);
+  play={legs:legs,i:0,u:0};auto=false;btn.innerHTML=PAUSE;btn.setAttribute('aria-label','Parar');
+  const r0=rot.slice(),s0=scale,first=legScale(legs[0]),c0=center(P[legs[0].a].ll);
+  await tween(1400,e=>{rot=lerpRot(r0,c0,e);scale=Math.exp(Math.log(s0)+(Math.log(first.near)-Math.log(s0))*e);});
+  for(let i=0;i<legs.length&&play;i++){
+    const L=legs[i],sc=legScale(L);play.i=i;play.u=0;arrEl.hidden=true;arrived=null;
+    legEl.innerHTML='<b>'+P[L.a].n+' → '+P[L.b].n+'</b> · '+MODE[L.m]+' · ~'+Math.round(L.dist*6371).toLocaleString('es-ES')+' km';
+    const r1=rot.slice(),s1=scale,c=center(P[L.a].ll);
+    if(Math.abs(Math.log(s1/sc.near))>.05||d3.geoDistance([-r1[0],-r1[1]],P[L.a].ll)>.002)
+      await tween(500,e=>{rot=lerpRot(r1,c,e);scale=Math.exp(Math.log(s1)+(Math.log(sc.near)-Math.log(s1))*e);});
+    const dur=RM?300:1200+Math.sqrt(L.dist)*2600;
+    await tween(dur,e=>{
+      play.u=e;const ll=L.interp(e);rot=center(ll);
+      const h=Math.pow(Math.sin(Math.PI*e),.85);scale=Math.exp(Math.log(sc.near)+(Math.log(sc.mid)-Math.log(sc.near))*h);
+    });
+    if(!play)break;
+    play.u=1;showArr(L);await sleep(1300);
+  }
+  stop();
+}
+function stop(){play=null;btn.innerHTML=PLAY;btn.setAttribute('aria-label','Reproducir');arrEl.hidden=true;arrived=null;
+  legEl.textContent='Arrastra para girar el globo · ▶ para volar un viaje';
+  const r1=rot.slice(),s1=scale,t0=performance.now();
+  (function s(n){const t=Math.min(1,(n-t0)/1200),e=d3.easeCubicInOut(t);scale=Math.exp(Math.log(s1)*(1-e));if(t<1&&!play)requestAnimationFrame(s);else if(!play)auto=true;})(t0);
+}
+btn.addEventListener('click',()=>{if(play)stop();else run();});
+
+/* bucle y medidor de fps */
+let frames=0,last=performance.now(),prevT=performance.now();
+function loop(now){
+  const dt=now-prevT;prevT=now;
+  if(auto&&!drag&&!RM)rot[0]+=dt*.006;
+  draw();frames++;
+  if(now-last>500){document.getElementById('fps').textContent=Math.round(frames*1000/(now-last));frames=0;last=now;}
+  requestAnimationFrame(loop);
+}
+document.getElementById('kb').textContent=Math.round(document.documentElement.outerHTML.length/1024)+' KB + d3 280 KB';
+new ResizeObserver(size).observe(app);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readCol);
+new MutationObserver(readCol).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+size();requestAnimationFrame(loop);
+})();
+</script>
+

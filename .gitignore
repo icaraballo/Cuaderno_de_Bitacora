@@ -1,0 +1,13 @@
+node_modules/
+package-lock.json
+package.json
+# lo que se genera al compilar
+codigo/mapa-de-viajes.html
+codigo/globe-data.json
+codigo/legs.json
+codigo/globo-ligero.html
+codigo/globo-pesado.html
+codigo/fotos.json
+# datos de Natural Earth para build_routes.py
+codigo/ne_*/
+__pycache__/

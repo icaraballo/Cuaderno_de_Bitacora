@@ -1,0 +1,185 @@
+<title>Globo pesado</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept: the same boarding-pass controls as the travel map, laid over a WebGL Earth in deep space.
+   Deliberately single-theme (space is dark in either theme). */
+:root{
+  --space:#03080c;--panel:rgba(12,26,34,.86);--line:#25404b;--ink:#e8f0f3;--muted:#8fa6b0;
+  --plane:#7fb0ff;--road:#c3a6ff;--rail:#7fd884;--boat:#4fd3da;--bus:#f3ab5a;--visit:#3fb8a2;
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--space);color:var(--ink);font:14px/1.4 var(--font-body);overflow:hidden;
+  padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--plane);outline-offset:2px}
+.app{position:relative;height:100%;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--space)}
+#globe{position:absolute;inset:0}
+.top{position:absolute;top:12px;left:12px;right:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;pointer-events:none;z-index:2}
+.top>*{pointer-events:auto}
+.title{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;max-width:100%;backdrop-filter:blur(6px)}
+h1{margin:0;font:700 21px/1.1 var(--font-display);letter-spacing:-.01em}
+.sub{margin:3px 0 0;font:400 11.5px var(--font-mono);color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:0 12px;height:36px;font:500 12px var(--font-mono);color:var(--muted);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:#1d3642;color:var(--ink)}
+.bar{position:absolute;left:12px;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;z-index:2;backdrop-filter:blur(6px)}
+.ib{width:38px;height:38px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--space);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.ib svg{width:18px;height:18px;fill:currentColor}
+select{height:38px;border:1px solid var(--line);border-radius:10px;background:#0c1a22;padding:0 10px;max-width:100%;min-width:0;flex:1 1 180px}
+.leg{flex:1 1 200px;min-width:0;font:500 12px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+.leg b{color:var(--ink);font-weight:500}
+.meter{display:flex;gap:6px;flex-wrap:wrap}
+.meter span{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:500 11.5px var(--font-mono);color:var(--muted);white-space:nowrap}
+.meter b{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.lbl{pointer-events:none;transform:translate(-50%,-100%);text-align:center;padding-bottom:18px;white-space:nowrap}
+.lbl b{display:block;font:700 32px/1.05 var(--font-display);letter-spacing:-.02em;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.85);animation:up .55s cubic-bezier(.2,.9,.2,1) both}
+.lbl small{font:500 11.5px var(--font-mono);color:#cfe0e8;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+.pl{pointer-events:none;width:30px;height:30px;margin:-15px 0 0 -15px;filter:drop-shadow(0 6px 4px rgba(0,0,0,.55))}
+.pl svg{width:100%;height:100%;display:block}
+.load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:500 12px var(--font-mono);color:var(--muted)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (max-width:600px){h1{font-size:18px}.lbl b{font-size:24px}.meter{width:100%}}
+@media (prefers-reduced-motion:reduce){.lbl b{animation:none}}
+</style>
+
+<div class="app" id="app">
+  <div class="load" id="load">Cargando el globo…</div>
+  <div id="globe" aria-label="Globo terráqueo 3D con las rutas de los viajes"></div>
+  <div class="top">
+    <div class="title"><h1>Globo pesado</h1><p class="sub">WebGL · three.js + globe.gl · foto de satélite y relieve</p></div>
+    <div class="seg" role="group" aria-label="Textura"><button type="button" id="tDay" aria-pressed="true">Día</button><button type="button" id="tNight" aria-pressed="false">Noche</button></div>
+  </div>
+  <div class="bar">
+    <button class="ib" id="play" type="button" aria-label="Reproducir"></button>
+    <select id="trip" aria-label="Viaje a reproducir"></select>
+    <p class="leg" id="leg">Arrastra para girar el globo · ▶ para volar un viaje</p>
+    <div class="meter"><span>peso <b id="kb">–</b></span><span><b id="fps">–</b> fps</span></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.45.3/dist/globe.gl.min.js"></script>
+<script>const TOPO=__TOPO__;const DATA=__DATA__;const TEX={day:'__DAY__',night:'__NIGHT__',bump:'__BUMP__'};</script>
+<script>
+(function(){
+'use strict';
+const PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',STOP='<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>';
+const MODE={plane:'avión',bus:'bus',boat:'barco',train:'tren',car:'coche',foot:'a pie',bike:'bici'};
+const COL={plane:'#7fb0ff',train:'#7fd884',boat:'#4fd3da',bus:'#f3ab5a',car:'#c3a6ff',foot:'#f59cc4',bike:'#e9cc5a'};
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const P=DATA.places,el=document.getElementById('globe');
+
+/* fondo de estrellas dibujado aquí mismo, sin descargar imágenes */
+function stars(){const c=document.createElement('canvas');c.width=2048;c.height=1024;const g=c.getContext('2d');g.fillStyle='#03080c';g.fillRect(0,0,2048,1024);
+  for(let i=0;i<2600;i++){const r=Math.random();g.fillStyle='rgba(220,235,255,'+(.25+r*.75)+')';g.fillRect(Math.random()*2048,Math.random()*1024,r>.97?2:1,r>.97?2:1);}return c.toDataURL('image/jpeg',.8);}
+
+/* tramos: los vuelos suben en arco (altura según la distancia); los demás van pegados al suelo, por su ruta real si existe */
+const LEGS=[];
+DATA.trips.forEach(t=>t.legs.forEach(L=>{
+  const a=P[L.a].ll,b=P[L.b].ll,dist=d3.geoDistance(a,b),air=L.m==='plane';
+  const ip=L.r?poly(L.r):d3.geoInterpolate(a,b),hmax=air?Math.min(.45,.08+dist*.32):0;
+  LEGS.push({trip:t,m:L.m,a:L.a,b:L.b,dist:dist,ip:ip,hmax:hmax,air:air});
+}));
+function poly(pts){const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+d3.geoDistance(pts[i-1],pts[i]));const tot=cum[cum.length-1]||1;
+  return u=>{const d=u*tot;let i=1;while(i<pts.length-1&&cum[i]<d)i++;return d3.geoInterpolate(pts[i-1],pts[i])(Math.max(0,Math.min(1,(d-cum[i-1])/((cum[i]-cum[i-1])||1))));};}
+const ptAt=(L,u)=>{const ll=L.ip(u);return [ll[1],ll[0],L.air?L.hmax*Math.sin(Math.PI*u):.004];};
+function legPts(L,u1){const n=L.air?64:40,out=[];for(let k=0;k<=n;k++)out.push(ptAt(L,u1*k/n));return out;}
+LEGS.forEach(L=>{L.full=legPts(L,1);});
+
+const world=topojson.feature(TOPO,TOPO.objects.countries).features,visited=new Set(DATA.iso.map(Number));
+const G=Globe()(el)
+  .backgroundImageUrl(stars())
+  .globeImageUrl(TEX.day).bumpImageUrl(TEX.bump)
+  .showAtmosphere(true).atmosphereColor('#79aefc').atmosphereAltitude(.17)
+  .polygonsData(world.filter(f=>visited.has(+f.id)))
+  .polygonCapColor(()=>'rgba(63,184,162,.28)').polygonSideColor(()=>'rgba(63,184,162,.08)').polygonStrokeColor(()=>'rgba(170,240,225,.7)').polygonAltitude(.004)
+  .pathPoints('pts').pathPointLat(p=>p[0]).pathPointLng(p=>p[1]).pathPointAlt(p=>p[2])
+  .pathColor(d=>d.c).pathStroke(d=>d.w).pathDashLength(d=>d.dl).pathDashGap(d=>d.dg).pathDashAnimateTime(d=>d.dt).pathTransitionDuration(0)
+  .pointLat(d=>d.ll[1]).pointLng(d=>d.ll[0]).pointAltitude(.006).pointRadius(.22).pointColor(()=>'#ffffff').pointsMerge(true)
+  .ringLat(d=>d.ll[1]).ringLng(d=>d.ll[0]).ringColor(d=>t=>d.c+Math.round((1-t)*255).toString(16).padStart(2,'0')).ringMaxRadius(3.2).ringPropagationSpeed(3.5).ringRepeatPeriod(380)
+  .htmlLat(d=>d.lat).htmlLng(d=>d.lng).htmlAltitude(d=>d.alt).htmlElement(d=>d.el).htmlTransitionDuration(0);
+const ctr=G.controls();ctr.autoRotate=!RM;ctr.autoRotateSpeed=.45;ctr.enableDamping=true;
+G.pointOfView({lat:30,lng:20,altitude:2.4},0);
+function size(){const r=document.getElementById('app').getBoundingClientRect();G.width(r.width).height(r.height);}
+new ResizeObserver(size).observe(document.getElementById('app'));size();
+setTimeout(()=>{document.getElementById('load').hidden=true;},400);
+
+function idleScene(){
+  G.pathsData(LEGS.map(L=>({pts:L.full,c:COL[L.m],w:L.air?.5:.7,dl:L.air?.35:1,dg:L.air?.15:0,dt:L.air?4200:0})));
+  const s=new Set();LEGS.forEach(L=>{s.add(L.a);s.add(L.b);});
+  G.pointsData([...s].map(k=>({ll:P[k].ll}))).ringsData([]).htmlElementsData([]);
+}
+idleScene();
+
+/* textura día / noche */
+const tDay=document.getElementById('tDay'),tNight=document.getElementById('tNight');
+function tex(n){G.globeImageUrl(n?TEX.night:TEX.day);tDay.setAttribute('aria-pressed',String(!n));tNight.setAttribute('aria-pressed',String(n));}
+tDay.addEventListener('click',()=>tex(false));tNight.addEventListener('click',()=>tex(true));
+
+/* reproducción: la cámara va encima del avión, se aleja a mitad de un tramo largo y se acerca al llegar */
+const sel=document.getElementById('trip'),btn=document.getElementById('play'),legEl=document.getElementById('leg');
+DATA.trips.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.y+' · '+t.title;sel.appendChild(o);});
+sel.value=String(DATA.trips.findIndex(t=>t.id==='japon'));btn.innerHTML=PLAY;
+const plane=document.createElement('div');plane.className='pl';
+plane.innerHTML='<svg viewBox="0 0 24 24"><path fill="#7fb0ff" stroke="#03080c" stroke-width="1.2" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>';
+const lbl=document.createElement('div');lbl.className='lbl';
+let run=0;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function alts(L){const half=Math.max(L.dist/2,.002),mid=Math.max(.22,Math.min(2.6,half*3.1+.08));return {mid:mid,near:Math.max(.16,mid*.42)};}
+function tween(tok,ms,f){return new Promise(res=>{const t0=performance.now();(function s(n){if(tok!==run){res(false);return;}const t=Math.min(1,(n-t0)/ms);f(t);if(t<1)requestAnimationFrame(s);else res(true);})(t0);});}
+async function playTrip(){
+  const tok=++run,t=DATA.trips[+sel.value],legs=LEGS.filter(L=>L.trip===t);
+  ctr.autoRotate=false;btn.innerHTML=STOP;btn.setAttribute('aria-label','Parar');
+  const done=[],pts=new Map();
+  G.pointsData([]).ringsData([]);
+  const a0=alts(legs[0]),s=P[legs[0].a].ll;
+  G.pointOfView({lat:s[1],lng:s[0],altitude:a0.near},RM?0:1600);await sleep(RM?50:1650);
+  for(let i=0;i<legs.length&&tok===run;i++){
+    const L=legs[i],A=alts(L);
+    pts.set(L.a,{ll:P[L.a].ll});G.pointsData([...pts.values()]);
+    legEl.innerHTML='<b>'+P[L.a].n+' → '+P[L.b].n+'</b> · '+MODE[L.m]+' · ~'+Math.round(L.dist*6371).toLocaleString('es-ES')+' km';
+    const pv=G.pointOfView(),st=P[L.a].ll;
+    if(Math.abs(pv.altitude-A.near)>.02||d3.geoDistance([pv.lng,pv.lat],st)>.003){G.pointOfView({lat:st[1],lng:st[0],altitude:A.near},RM?0:600);await sleep(RM?20:620);}
+    const cur={pts:[],c:COL[L.m],w:L.air?.9:1.1,dl:1,dg:0,dt:0};
+    const pl={lat:0,lng:0,alt:0,el:plane};G.htmlElementsData(L.air?[pl]:[]);
+    const dur=RM?300:1300+Math.sqrt(L.dist)*3000;
+    const ok=await tween(tok,dur,t0=>{
+      const e=d3.easeSinInOut(t0),p=ptAt(L,e);
+      cur.pts=legPts(L,e);G.pathsData(done.concat([cur]));
+      if(L.air){pl.lat=p[0];pl.lng=p[1];pl.alt=p[2];
+        const a=G.getScreenCoords(p[0],p[1],p[2]),q=ptAt(L,Math.min(1,e+.01)),b=G.getScreenCoords(q[0],q[1],q[2]);
+        if(a&&b)plane.style.transform='rotate('+(Math.atan2(b.y-a.y,b.x-a.x)+Math.PI/2)+'rad) scale('+(1+.5*Math.sin(Math.PI*e))+')';
+        G.htmlElementsData([pl]);}
+      const h=Math.pow(Math.sin(Math.PI*e),.85),ll=L.ip(e);
+      G.pointOfView({lat:ll[1],lng:ll[0],altitude:Math.exp(Math.log(A.near)+(Math.log(A.mid)-Math.log(A.near))*h)},0);
+    });
+    if(!ok)return;
+    done.push({pts:L.full,c:COL[L.m],w:L.air?.6:.9,dl:1,dg:0,dt:0});G.pathsData(done);
+    pts.set(L.b,{ll:P[L.b].ll});G.pointsData([...pts.values()]);
+    const end=P[L.b];lbl.innerHTML='<b></b><small></small>';lbl.querySelector('b').textContent=end.n;lbl.querySelector('small').textContent=MODE[L.m]+' desde '+P[L.a].n;
+    G.htmlElementsData([{lat:end.ll[1],lng:end.ll[0],alt:.01,el:lbl}]).ringsData([{ll:end.ll,c:COL[L.m]}]);
+    await sleep(RM?400:1300);G.ringsData([]);
+  }
+  if(tok===run)stop();
+}
+function stop(){run++;btn.innerHTML=PLAY;btn.setAttribute('aria-label','Reproducir');legEl.textContent='Arrastra para girar el globo · ▶ para volar un viaje';
+  idleScene();const pv=G.pointOfView();G.pointOfView({lat:pv.lat,lng:pv.lng,altitude:2.4},1400);setTimeout(()=>{ctr.autoRotate=!RM;},1450);}
+btn.addEventListener('click',()=>{if(btn.getAttribute('aria-label')==='Parar')stop();else playTrip();});
+
+/* medidor */
+let frames=0,last=performance.now();
+(function loop(now){frames++;if(now-last>500){document.getElementById('fps').textContent=Math.round(frames*1000/(now-last));frames=0;last=now;}requestAnimationFrame(loop);})(last);
+document.getElementById('kb').textContent=(document.documentElement.outerHTML.length/1048576).toFixed(1).replace('.',',')+' MB + globe.gl 1,8 MB';
+})();
+</script>
+
